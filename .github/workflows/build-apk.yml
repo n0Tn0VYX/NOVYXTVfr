@@ -39,36 +39,21 @@ jobs:
           sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
       - name: Extract Android app
-        shell: bash
         run: |
           set -eux
-          test -f app.zip
-          echo "ZIP contents:"
-          unzip -l app.zip | head -60
-
-          rm -rf app
           unzip -o app.zip
-
-          echo "Extracted app directory:"
-          ls -la app
-          test -d app
           test -f app/build.gradle.kts
           test -f app/src/main/AndroidManifest.xml
 
-      - name: Verify project configuration
-        shell: bash
+      - name: Fix project permissions
         run: |
-          set -eux
-          cat settings.gradle.kts
-          test -d app
-          test -f app/build.gradle.kts
-          test -f app/src/main/AndroidManifest.xml
+          chmod -R u+rwX app
+          chmod -R u+rwX gradle
+          chmod u+rw gradlew
+          ls -ld app app/src app/src/main
 
       - name: Build NOVYX TV APK
-        shell: bash
         run: |
-          set -eux
-          ls -la app
           gradle assembleDebug --no-daemon --no-configuration-cache
 
       - name: Upload APK
