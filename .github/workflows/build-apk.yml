@@ -41,6 +41,7 @@ jobs:
       - name: Extract Android app
         run: |
           set -eux
+          test -f app.zip
           unzip -o app.zip
           test -f app/build.gradle.kts
           test -f app/src/main/AndroidManifest.xml
@@ -48,9 +49,23 @@ jobs:
       - name: Fix project permissions
         run: |
           chmod -R u+rwX app
-          chmod -R u+rwX gradle
-          chmod u+rw gradlew
+
+          if [ -d gradle ]; then
+            chmod -R u+rwX gradle
+          fi
+
+          if [ -f gradlew ]; then
+            chmod u+rw gradlew
+          fi
+
           ls -ld app app/src app/src/main
+
+      - name: Show project configuration
+        run: |
+          echo "----- settings.gradle.kts -----"
+          cat settings.gradle.kts
+          echo "----- app/build.gradle.kts -----"
+          cat app/build.gradle.kts
 
       - name: Build NOVYX TV APK
         run: |
