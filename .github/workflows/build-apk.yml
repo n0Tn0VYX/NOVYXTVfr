@@ -24,7 +24,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Gradle 9.1.0
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.1.0"
@@ -38,14 +38,73 @@ jobs:
         run: |
           sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Extract Android app
+      - name: Inspect and extract app ZIP
         run: |
+          echo "Repository root:"
+          pwd
+          ls -la
+
+          echo "ZIP files:"
+          find . -maxdepth 3 -type f -name "*.zip" -print
+
+          echo "ZIP contents:"
+          unzip -l app.zip | head -100
+
+          echo "Extracting ZIP:"
           unzip -o app.zip
-          test -f app/build.gradle.kts
+
+          echo "Extracted directories:"
+          find . -maxdepth 5 -type d | sort | head -200
+
+          echo "Searching for AndroidManifest.xml:"
+          find . -type f -name AndroidManifest.xml -print
+
+          echo "Searching for app Gradle files:"
+          find . -type f \( -name build.gradle -o -name build.gradle.kts \) -print
+
+      - name: Locate Android app module
+        run: |
+          if [ -f app/src/main/AndroidManifest.xml ]; then
+            echo "Android app found at app/"
+          else
+            MANIFEST=$(find . -type f -path "*/src/main/AndroidManifest.xml" \
+              ! -path "./.git/*" | head -1)
+
+            if [ -z "$MANIFEST" ]; then
+              echo "ERROR: AndroidManifest.xml not found."
+              exit 1
+            fi
+
+            APP_DIR="${MANIFEST%/src/main/AndroidManifest.xml}"
+            echo "Found Android app at: $APP_DIR"
+
+            if [ "$APP_DIR" != "./app" ]; then
+              mkdir -p app
+              cp -a "$APP_DIR"/. app/
+            fi
+          fi
+
           test -f app/src/main/AndroidManifest.xml
 
+      - name: Diagnose Gradle settings
+        run: |
+          echo "Root Gradle settings:"
+          cat settings.gradle.kts
+          echo "App module files:"
+          ls -la app
+          echo "App Gradle configuration:"
+          if [ -f app/build.gradle.kts ]; then
+            cat app/build.gradle.kts
+          elif [ -f app/build.gradle ]; then
+            cat app/build.gradle
+          else
+            echo "ERROR: App Gradle file missing."
+            exit 1
+          fi
+
       - name: Build NOVYX TV APK
-        run: gradle assembleDebug --no-daemon
+        run: |
+          gradle assembleDebug --no-daemon --no-configuration-cache
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
